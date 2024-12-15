@@ -93,7 +93,7 @@ export class Engine extends EventEmitter {
         this.lastFrameTime = Date.now();
         
         // Start all systems
-        this.timeManager.start();
+        this.timeManager.update();
         this.weatherSystem.start();
         this.proceduralSystem.start();
         
@@ -109,7 +109,7 @@ export class Engine extends EventEmitter {
         this.isRunning = false;
         
         // Stop all systems
-        this.timeManager.stop();
+        this.timeManager.update();
         this.weatherSystem.stop();
         this.proceduralSystem.stop();
         
@@ -199,6 +199,9 @@ export class Engine extends EventEmitter {
 
     public get frameInterval(): number {
         return this._frameInterval;
+    }
+    public getGameTime(): number {
+        return this.timeManager.getState().currentTime;
     }
 
     public cleanup(): void {

@@ -29,6 +29,8 @@ export class WeatherSystem extends EventEmitter {
     private transitionTime: number = 0;
     private proceduralSystem: ProceduralSystem;
     private isInitialized: boolean = false;
+    private windSpeed: number = 0;
+    private windDirection: number = 0;
 
     constructor() {
         super();

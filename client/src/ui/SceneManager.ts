@@ -14,6 +14,33 @@ export interface SceneConfig {
     fogDensity?: number;
 }
 
+export interface WeatherData {
+    type: string;
+    intensity: number;
+    temperature: number;
+    humidity: number;
+    windSpeed: number;
+    windDirection: number;
+}
+
+export interface TimeData {
+    time: number;
+    dayNightCycle: number;
+}
+
+export interface BiomeData {
+    elevation: number;
+    moisture: number;
+    temperature: number;
+    fertility: number;
+    roughness: number;
+}
+
+export interface CameraMoveEvent {
+    position: THREE.Vector3;
+    target: THREE.Vector3;
+}
+
 export class SceneManager extends EventEmitter {
     private scene: THREE.Scene;
     private camera: THREE.PerspectiveCamera | THREE.OrthographicCamera;
@@ -26,6 +53,7 @@ export class SceneManager extends EventEmitter {
     private pixelRatio: number;
     private width: number;
     private height: number;
+    private resizeObserver: ResizeObserver;
 
     constructor(config: SceneConfig) {
         super();
@@ -90,7 +118,7 @@ export class SceneManager extends EventEmitter {
         // Enable tone mapping and color management
         this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
         this.renderer.toneMappingExposure = 1.0;
-        this.renderer.outputEncoding = THREE.sRGBEncoding;
+        this.renderer.outputColorSpace = THREE.SRGBColorSpace;
 
         console.log('Renderer initialized:', {
             size: {
@@ -114,14 +142,16 @@ export class SceneManager extends EventEmitter {
         this.setupLighting();
         
         console.log('SceneManager initialization complete');
+
+        // Set up camera movement handling
+        this.on('cameraMove', this.handleCameraMove.bind(this));
+
+        // Initialize resize observer
+        this.resizeObserver = new ResizeObserver(this.handleResize.bind(this));
+        this.resizeObserver.observe(this.container);
     }
 
     private setupEventListeners(): void {
-        const resizeObserver = new ResizeObserver(() => {
-            this.handleResize();
-        });
-        resizeObserver.observe(this.container);
-
         window.addEventListener('keydown', (event) => {
             switch (event.code) {
                 case 'Space':
@@ -165,6 +195,18 @@ export class SceneManager extends EventEmitter {
             aspect,
             pixelRatio: this.pixelRatio
         });
+
+        // Emit resize event
+        this.emit('resize', {
+            width: this.width,
+            height: this.height,
+            aspect: aspect,
+            pixelRatio: this.pixelRatio
+        });
+    }
+
+    public resize(): void {
+        this.handleResize();
     }
 
     private setupLighting(): void {
@@ -254,7 +296,7 @@ export class SceneManager extends EventEmitter {
 
     private animate(): void {
         if (!this.isRunning) return;
-        requestAnimationFrame(this.animate.bind(this));
+        requestAnimationFrame(() => this.animate());
         this.render();
         this.emit('update', this.clock.getDelta());
     }
@@ -312,7 +354,18 @@ export class SceneManager extends EventEmitter {
             this.scene.remove(object);
         }
 
+        // Disconnect resize observer
+        this.resizeObserver.disconnect();
+
         // Remove all event listeners
         this.removeAllListeners();
     }
-} 
+
+    private handleCameraMove(event: CameraMoveEvent): void {
+        if (this.controls instanceof OrbitControls) {
+            // Update orbit controls target
+            this.controls.target.copy(event.target);
+            this.controls.update();
+        }
+    }
+}

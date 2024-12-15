@@ -1,117 +1,160 @@
+import { SceneManager } from './ui/SceneManager';
 import { TerrainVisualizer } from './visualizers/TerrainVisualizer';
-import { DebugPanel } from './ui/DebugPanel';
-import { EngineConnection } from './network/EngineConnection';
-import { Controls } from './ui/Controls';
+import { SkyVisualizer } from './visualizers/SkyVisualizer';
+import { WeatherVisualizer } from './visualizers/WeatherVisualizer';
+import { ControlManager } from './ui/ControlManager';
+import { PanelManager } from './ui/PanelManager';
+import { TimeManager } from './ui/TimeManager';
+import { EventManager } from './ui/EventManager';
+import * as THREE from 'three';
 
-class BiomeClient {
+export class BiomeClient {
+    private sceneManager: SceneManager;
     private terrainVisualizer: TerrainVisualizer;
-    private debugPanel: DebugPanel;
-    private engineConnection: EngineConnection;
-    private controls: Controls;
-    private lastFrameTime: number = 0;
-    private frameCount: number = 0;
+    private skyVisualizer: SkyVisualizer;
+    private weatherVisualizer: WeatherVisualizer;
+    private controlManager: ControlManager;
+    private panelManager: PanelManager;
+    private timeManager: TimeManager;
+    private eventManager: EventManager;
+    private container: HTMLElement;
 
     constructor() {
-        console.log('BiomeClient constructor started');
+        // Initialize event system first
+        this.eventManager = new EventManager();
         
-        // Create canvas container if it doesn't exist
-        let container = document.getElementById('canvas-container');
-        if (!container) {
-            console.log('Creating canvas container');
-            container = document.createElement('div');
-            container.id = 'canvas-container';
-            document.body.appendChild(container);
-        }
-
-        // Initialize components
-        this.terrainVisualizer = new TerrainVisualizer('canvas-container');
-        this.debugPanel = new DebugPanel();
-        this.engineConnection = new EngineConnection();
-        this.controls = new Controls(this.terrainVisualizer.getSceneManager());
-
-        this.setupEventListeners();
-        console.log('BiomeClient constructor completed');
+        // Get or create container
+        this.container = this.getOrCreateContainer();
+        
+        // Initialize core systems
+        this.sceneManager = new SceneManager({
+            container: this.container,
+            backgroundColor: 0x000000,
+            fogColor: 0xcccccc,
+            fogDensity: 0.002
+        });
+        
+        // Initialize visualizers
+        this.terrainVisualizer = new TerrainVisualizer(this.sceneManager);
+        this.skyVisualizer = new SkyVisualizer(this.sceneManager);
+        this.weatherVisualizer = new WeatherVisualizer(this.sceneManager);
+        
+        // Initialize UI managers
+        this.panelManager = new PanelManager(this.sceneManager, this.container);
+        this.timeManager = new TimeManager(this.sceneManager);
+        this.controlManager = new ControlManager(this.sceneManager);
     }
 
-    private setupEventListeners(): void {
-        console.log('Setting up event listeners');
+    private getOrCreateContainer(): HTMLElement {
+        let container = document.getElementById('app');
         
-        // Listen for engine updates
-        this.engineConnection.on('terrainUpdate', (data) => {
-            console.log('Handling terrain update');
-            this.terrainVisualizer.updateTerrain(data);
-        });
-
-        this.engineConnection.on('weatherUpdate', (data) => {
-            console.log('Handling weather update');
-            this.debugPanel.updateWeather(data);
-            this.terrainVisualizer.updateWeatherEffects(data);
-        });
-
-        this.engineConnection.on('timeUpdate', (data) => {
-            console.log('Handling time update');
-            this.debugPanel.updateTime(data);
-            this.terrainVisualizer.updateLighting(data);
-        });
-
-        // Handle window resize
-        window.addEventListener('resize', () => {
-            console.log('Handling window resize');
-            this.terrainVisualizer.resize();
-        });
+        if (!container) {
+            container = document.createElement('div');
+            container.id = 'app';
+            document.body.appendChild(container);
+        }
+        
+        return container;
     }
 
     public async initialize(): Promise<void> {
+        console.log('Initializing Biome Client...');
+        
         try {
-            console.log('Initializing BiomeClient');
+            // Initialize scene first
+            await this.sceneManager.start();
             
-            // Initialize visualizer first
-            await this.terrainVisualizer.initialize();
-            console.log('TerrainVisualizer initialized');
+            // Initialize visualizers in parallel
+            await Promise.all([
+                this.terrainVisualizer.initialize(),
+                this.skyVisualizer.initialize(),
+                this.weatherVisualizer.initialize()
+            ]);
             
-            // Initialize debug panel
-            this.debugPanel.initialize();
-            console.log('DebugPanel initialized');
+            // Initialize UI components
+            await Promise.all([
+                this.timeManager.start(),
+                this.controlManager.start()
+            ]);
             
-            // Connect to engine
-            await this.engineConnection.connect();
-            console.log('Connected to engine');
+            // Setup event listeners
+            this.setupEventListeners();
             
-            // Start the render loop
-            this.animate();
-            console.log('Animation loop started');
+            // Start render loop
+            this.render();
+            
+            console.log('Biome Client initialized successfully');
         } catch (error) {
-            console.error('Failed to initialize BiomeClient:', error);
+            console.error('Failed to initialize Biome Client:', error);
             throw error;
         }
     }
 
-    private animate(): void {
-        const currentTime = performance.now();
-        this.frameCount++;
+    private setupEventListeners(): void {
+        // Time update events
+        this.eventManager.on('timeUpdate', (data) => {
+            this.skyVisualizer.updateSky({
+                time: data.time,
+                cloudCover: 0.3,
+                sunPosition: new THREE.Vector3(0, Math.sin(data.dayNightCycle * Math.PI) * 100, 0)
+            });
+        });
 
-        // Calculate FPS every second
-        if (currentTime - this.lastFrameTime >= 1000) {
-            const fps = Math.round((this.frameCount * 1000) / (currentTime - this.lastFrameTime));
-            this.debugPanel.updateFPS(fps);
-            this.frameCount = 0;
-            this.lastFrameTime = currentTime;
-        }
+        // Weather update events
+        this.eventManager.on('weatherUpdate', (data) => {
+            this.weatherVisualizer.updateWeather(data);
+        });
 
-        // Update debug panel
-        this.debugPanel.update();
+        // Terrain update events
+        this.eventManager.on('terrainUpdate', (data) => {
+            this.terrainVisualizer.updateTerrain(data);
+        });
 
-        // Update terrain visualization
+        // Window resize event
+        window.addEventListener('resize', this.handleResize.bind(this));
+
+        // Forward events from SceneManager
+        this.sceneManager.on('timeUpdate', (data) => this.eventManager.emit('timeUpdate', data));
+        this.sceneManager.on('weatherUpdate', (data) => this.eventManager.emit('weatherUpdate', data));
+        this.sceneManager.on('terrainUpdate', (data) => this.eventManager.emit('terrainUpdate', data));
+    }
+
+    private handleResize(): void {
+        this.sceneManager.resize();
+        this.terrainVisualizer.resize();
+        this.skyVisualizer.resize();
+        this.weatherVisualizer.resize();
+    }
+
+    private render = (): void => {
+        requestAnimationFrame(this.render);
+        
+        this.sceneManager.render();
         this.terrainVisualizer.render();
+        this.skyVisualizer.render();
+        this.weatherVisualizer.render();
+    }
 
-        // Request next frame
-        requestAnimationFrame(this.animate.bind(this));
+    public dispose(): void {
+        // Cleanup visualizers
+        this.terrainVisualizer.dispose();
+        this.skyVisualizer.dispose();
+        this.weatherVisualizer.dispose();
+        
+        // Cleanup managers
+        this.controlManager.dispose();
+        this.timeManager.dispose();
+        this.panelManager.dispose();
+        
+        // Cleanup scene
+        this.sceneManager.dispose();
+        
+        // Remove event listeners
+        this.eventManager.removeAllListeners();
+        window.removeEventListener('resize', this.handleResize.bind(this));
     }
 }
 
-// Start the client
-console.log('Starting BiomeClient');
+// Initialize the application
 const client = new BiomeClient();
-client.initialize().catch(error => {
-    console.error('Failed to start BiomeClient:', error);
-}); 
+client.initialize().catch(console.error);

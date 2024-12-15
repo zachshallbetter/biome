@@ -1,145 +1,213 @@
-# Biome Engine
+# Biome Simulator
 
-A procedural generation engine for creating dynamic, interactive worlds with realistic weather, growth, and physics systems.
+A procedural biome generation and simulation engine with real-time visualization.
 
 ## Features
 
 ### Core Systems
-- **Procedural Generation**: Terrain, biomes, and content generation using advanced noise algorithms
-- **Weather System**: Dynamic weather patterns affecting the environment
-- **Time Management**: Day/night cycle and aging mechanics
-- **Physics Engine**: Real-time physics with collision detection and fluid dynamics
-- **Growth System**: Vegetation growth and structural aging simulation
+- Procedural terrain generation using multiple noise algorithms
+- Dynamic weather system with realistic transitions
+- Day/night cycle with accurate sun positioning
+- Biome-specific environmental effects
+- Real-time erosion simulation
+- Save state system for world persistence
 
 ### Visualization
-- **3D Terrain Viewer**: Real-time terrain visualization with biome coloring
-- **Weather Effects**: Visual representation of weather conditions
-- **Day/Night Cycle**: Dynamic lighting based on time of day
-- **Debug Tools**: Performance monitoring and system state visualization
+- 3D terrain visualization with dynamic LOD
+- Weather effects (rain, snow) using particle systems
+- Dynamic sky system with day/night transitions
+- Cloud coverage and atmospheric effects
+- Real-time shadow casting
 
-## Project Structure
-
-```
-biome/
-├── src/                         # Engine source code
-│   ├── core/                   # Core engine systems
-│   ├── world/                  # World generation and management
-│   ├── entities/               # Entity and physics systems
-│   └── systems/                # Additional engine systems
-│
-└── client/                     # Visualization client
-    ├── public/                # Static assets
-    └── src/                   # Client source code
-        ├── scene/            # Three.js scene management
-        ├── visualizers/      # Visualization components
-        ├── ui/              # User interface components
-        └── network/         # Client-server communication
-```
-
-## Getting Started
-
-### Prerequisites
-- Node.js (v14 or higher)
-- npm (v6 or higher)
-
-### Installation
-1. Clone the repository:
-\`\`\`bash
-git clone https://github.com/yourusername/biome.git
-cd biome
-\`\`\`
-
-2. Install dependencies:
-\`\`\`bash
-npm install
-\`\`\`
-
-### Development
-Start the development servers:
-\`\`\`bash
-npm run dev
-\`\`\`
-
-This will start:
-- Engine server on port 8080
-- Client development server on port 3000
-
-### Building
-Build for production:
-\`\`\`bash
-npm run build
-\`\`\`
-
-### Running
-Start the production server:
-\`\`\`bash
-npm start
-\`\`\`
+### User Interface
+- Modular panel system with drag-and-drop support
+- Time control panel with play/pause and speed controls
+- Debug console for performance monitoring
+- Status panel for world events
+- Biome parameter controls
+- Save/Load functionality for world states
 
 ## Controls
 
 ### Camera Controls
-- **Orbit Mode** (Default):
-  - Left Mouse: Rotate camera
-  - Right Mouse: Pan camera
-  - Mouse Wheel: Zoom in/out
-  - R: Reset camera position
+- **Left Mouse Button**: Rotate camera
+- **Right Mouse Button**: Pan camera
+- **Mouse Wheel**: Zoom in/out
+- **Alt + Left Mouse**: Orbit around point
+- **Alt + Right Mouse**: Dolly zoom
 
-- **Fly Mode** (Toggle with Spacebar):
-  - W/S: Move forward/backward
-  - A/D: Move left/right
-  - Q/E: Roll left/right
-  - R: Reset camera position
+### Time Controls
+- **Space**: Play/Pause simulation
+- **Left Arrow**: Decrease time speed
+- **Right Arrow**: Increase time speed
+- **R**: Reset time to dawn
+
+### Save State Controls
+- **Ctrl + S**: Quick save current state
+- **Ctrl + L**: Load last saved state
+- **Shift + S**: Open save dialog
+- **Shift + L**: Open load dialog
+- **Alt + S**: Export save file
+- **Alt + L**: Import save file
 
 ### Debug Controls
-- F1: Toggle debug panel
-- F2: Toggle grid helper
-- F3: Toggle axes helper
+- **F1**: Toggle debug panel
+- **F2**: Toggle wireframe mode
+- **F3**: Toggle performance stats
+- **F12**: Open browser developer tools
+
+## Save States
+
+### Save File Structure
+```json
+{
+    "version": "1.0.0",
+    "timestamp": "2023-11-15T12:00:00Z",
+    "world": {
+        "seed": "12345",
+        "time": {
+            "current": 720,
+            "speed": 1
+        },
+        "weather": {
+            "type": "CLEAR",
+            "intensity": 0,
+            "temperature": 20
+        },
+        "terrain": {
+            "modifications": [],
+            "biomes": {}
+        }
+    }
+}
+```
+
+### Save Locations
+- Quick saves: `localStorage` under key `biome_quicksave`
+- Auto-saves: `localStorage` under key `biome_autosave_[timestamp]`
+- File saves: Downloaded as `biome_save_[timestamp].json`
+
+### Save Types
+1. **Quick Save**
+   - Instantly saves current state to localStorage
+   - Only one quick save slot available
+   - Overwrites previous quick save
+
+2. **Auto Save**
+   - Automatically saves every 5 minutes
+   - Keeps last 3 auto-saves
+   - Rotates saves automatically
+
+3. **File Save**
+   - Exports complete save file
+   - Can be shared between users
+   - Includes all world data
 
 ## Architecture
 
-### Engine Core
-- **Engine.ts**: Main orchestrator for all systems
-- **TimeManager.ts**: Handles time-based mechanics
-- **WeatherSystem.ts**: Manages weather patterns
-- **ProceduralSystem.ts**: Handles procedural generation
-- **ContentManager.ts**: Manages assets and resources
+### Client-Side Components
+```
+client/
+├── src/
+│   ├── scene/
+│   │   └── SceneManager.ts       # 3D scene management and rendering
+│   ├── visualizers/
+│   │   ├── TerrainVisualizer.ts  # Terrain mesh and materials
+│   │   ├── SkyVisualizer.ts      # Sky dome and lighting
+│   │   └── WeatherVisualizer.ts  # Particle systems for weather
+│   ├── ui/
+│   │   ├── components/
+│   │   │   ├── Panel.ts          # Base panel component
+│   │   │   ├── Controls.ts       # World control interface
+│   │   │   └── Console.ts        # Debug console
+│   │   ├── ControlManager.ts     # UI control coordination
+│   │   ├── PanelManager.ts       # Panel management
+│   │   ├── TimeManager.ts        # Time control system
+│   │   └── EventManager.ts       # Event handling system
+│   └── config/
+│       └── ui.config.ts          # UI configuration
+```
 
-### World Systems
-- **TerrainGenerator.ts**: Generates terrain using noise algorithms
-- **BiomeManager.ts**: Manages biome distribution and transitions
-- **EnvironmentManager.ts**: Coordinates environmental systems
-- **GrowthManager.ts**: Handles vegetation and structure growth
+### Server-Side Components
+```
+src/
+├── core/
+│   ├── Engine.ts                 # Main simulation engine
+│   ├── TimeManager.ts            # Time simulation
+│   ├── WeatherSystem.ts          # Weather simulation
+│   └── ProceduralSystem.ts       # Procedural generation
+├── world/
+│   ├── Terrain/
+│   │   ├── TerrainGenerator.ts   # Terrain generation
+│   │   ├── NoiseAlgorithms.ts    # Noise generation
+│   │   └── ErosionSimulator.ts   # Erosion simulation
+│   ├── BiomeManager.ts           # Biome management
+│   └── EnvironmentManager.ts     # Environmental effects
+└── entities/
+    ├── Physics/
+    │   ├── PhysicsEngine.ts      # Physics simulation
+    │   └── CollisionHandler.ts   # Collision detection
+    └── EntityManager.ts          # Entity management
+```
 
-### Physics Systems
-- **PhysicsEngine.ts**: Core physics simulation
-- **CollisionHandler.ts**: Collision detection and response
-- **RopePhysics.ts**: Flexible object simulation
-- **FluidDynamics.ts**: Water and air physics
+## Development Environment
 
-### Visualization
-- **SceneManager.ts**: Three.js scene management
-- **TerrainVisualizer.ts**: 3D terrain rendering
-- **WeatherEffects.ts**: Visual weather effects
-- **DebugPanel.ts**: Performance and debug information
+### Prerequisites
+- Node.js (v16 or higher)
+- npm (v8 or higher)
+- Modern web browser with WebGL support
+
+### Local Development
+1. Clone the repository:
+```bash
+git clone https://github.com/yourusername/biome-simulator.git
+cd biome-simulator
+```
+
+2. Install dependencies:
+```bash
+npm install
+```
+
+3. Start the development server:
+```bash
+npm run dev
+```
+The application will be available at `http://localhost:3000`
+
+4. Build for production:
+```bash
+npm run build
+```
+
+### Development Commands
+- `npm run dev` - Start development server
+- `npm run build` - Build for production
+- `npm run lint` - Run linter
+- `npm test` - Run tests
+- `npm run clean` - Clean build artifacts
+
+### Architecture Notes
+- The client uses Three.js for 3D visualization
+- Event-driven architecture using EventEmitter
+- Modular UI system with draggable panels
+- Asynchronous initialization sequence
+- Proper resource cleanup and disposal
+
+### Browser Support
+- Chrome (recommended) - Latest version
+- Firefox - Latest version
+- Safari - Version 14+
+- Edge - Latest version
 
 ## Contributing
 
 1. Fork the repository
-2. Create your feature branch (\`git checkout -b feature/AmazingFeature\`)
-3. Commit your changes (\`git commit -m 'Add some AmazingFeature'\`)
-4. Push to the branch (\`git push origin feature/AmazingFeature\`)
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
 
 ## License
 
-This project is licensed under the ISC License - see the [LICENSE](LICENSE) file for details.
-
-## Acknowledgments
-
-- [three](https://www.npmjs.com/package/three) ^0.158.0 - For 3D rendering
-- [socket.io](https://www.npmjs.com/package/socket.io) ^4.7.2 and [socket.io-client](https://www.npmjs.com/package/socket.io-client) ^4.7.2 - For real-time communication
-- [simplex-noise](https://www.npmjs.com/package/simplex-noise) ^4.0.1 - For procedural generation
-- [gl-matrix](https://www.npmjs.com/package/gl-matrix) ^3.4.3 - For vector mathematics
-- [eventemitter3](https://www.npmjs.com/package/eventemitter3) ^5.0.1 - For event handling
-- [express](https://www.npmjs.com/package/express) ^4.18.2 - For web server functionality
+This project is licensed under the MIT License - see the LICENSE file for details.
